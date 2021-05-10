@@ -5,11 +5,46 @@ mongoose.connect('mongodb://localhost/playground')
   .catch(err => console.error('Could not connect to Mongo DB...', err));
 
 const courseSchema = new mongoose.Schema({
-  name: String,
+  name: {
+    type: String,
+    required: true,
+    minlength: 5,
+    maxlength: 255
+    //match: /pattern/
+  },
+  category: {
+    type: String,
+    required: true,
+    enum: ['web', 'mobile', 'network'], //the category should be in three of this otherwise we get validation error
+    lowercase: true,
+    //uppercase: true,
+    trim: true //if we have a padding around our string mongoose will automatically remove those padding.
+  },
   author: String,
-  tags: [ String ],
+  tags: {
+    type: Array,
+    //custome validator
+    validate: {
+      isAsync: true,
+      validator: function(v, callback) {
+        setTimeout(() => {
+          const result = v && v.length > 0;
+          callback(result);
+        }, 1000);
+      },
+      message: 'A course should have at least one tag.'
+    }
+  },
   date: { type: Date, default: Date.now },
-  isPublished: Boolean
+  isPublished: Boolean,
+  price: {
+    type: Number,
+    required: function() { return this.isPublished; },
+    min: 10,
+    max: 200,
+    get: v => Math.round(v), //when you read the value of the properties
+    set: v => Math.round(v) //when you set the value of the properties
+  }
 });
 
 const Course = mongoose.model('Course', courseSchema);
@@ -17,14 +52,25 @@ const Course = mongoose.model('Course', courseSchema);
 async function createCourse(){
   const course = new Course({
     name: 'Angular course',
+    category: 'Web',
     author: 'Aaria',
-    tags: ['angular', 'front-end'],
-    isPublished: true
+    tags: ['frontend'],
+    isPublished: true,
+    price: 15.8
   });
 
-  const result = await course.save();
-  console.log(result);
+  try {
+    //await course.validate();
+    const result = await course.save();
+    console.log(result);
+  }
+  catch(ex) {
+    for (field in ex.errors)
+      console.log(ex.errors[field].message);
+  }
 }
+
+createCourse();
 
 async function getCourses() {
   //const courses = await Course.find(); // we can get all courses
@@ -90,4 +136,4 @@ async function removeCourse(id) {
   console.log(result);
 }
 
-removeCourse('609381c6b695ae149463037d');
+//removeCourse('609381c6b695ae149463037d');
