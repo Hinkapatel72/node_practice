@@ -17,11 +17,14 @@ router.post('/', async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
+  /*if (!mongoose.Types.OnjectId.isValid(req.body.customerId))
+    return res.status(400).send('Invalid Customer!');*/
+
   const customer = await Customer.findById(req.body.customerId);
-  if (!customer) return res.status(400).send('Invalid Customer');
+  if (!customer) return res.status(400).send('Invalid Customer!');
 
   const movie = await Movie.findById(req.body.movieId);
-  if (!movie) return res.status(400).send('Invalid Movie');
+  if (!movie) return res.status(400).send('Invalid Movie!');
 
   if (movie.numberInStock === 0) return res.status(400).send('Movie not in stock');
 
@@ -43,9 +46,22 @@ router.post('/', async (req, res) => {
   movie.save();*/
 
   // Using transactions
-  
+  try {
+    new Fawn.Task()
+      .save('rentals', rental)
+      .update('movies', { _id: movie._id }, {
+        $inc: { numberInStock: -1 }
+      })
+      .run();
 
-  res.send(rental);
+    res.send(rental);
+  }
+  catch(ex) {
+    res.status(500).send('Somthing Failed!');
+  }
+
+
+
 });
 
 router.get('/:id', async (req, res) => {
